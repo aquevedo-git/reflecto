@@ -1,0 +1,15 @@
+{
+  "heartbeat": {
+    "ts": "number (unix seconds)"
+  },
+  "presence": {
+    "state": "AWAKE | CALM | SLEEPING",
+    "time_of_day": "morning | afternoon | evening | night"
+  },
+  "skills": {
+    "financial": "0-100",
+    "health": "0-100",
+    "focus": "0-100",
+    "relationships": "0-100"
+  }
+}
