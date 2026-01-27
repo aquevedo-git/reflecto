@@ -1,0 +1,2 @@
+"""Avatar storage scaffolding."""
+
