@@ -1,5 +1,5 @@
 from .base import LLMBridge
 
-class MockAdapter(LLMBridge):
+class MockLLMAdapter(LLMBridge):
     def generate(self, prompt: str) -> str:
         return prompt

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reflecto Session Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="container">
+    <div id="session-loading" style="display:none;text-align:center;margin-bottom:12px;color:#4f8cff;font-weight:500;">Starting session…</div>
+    <h1>Reflecto Session Viewer</h1>
+    <button id="start-session">Start Session</button>
+    <div id="session-content">
+      <div id="avatar-container">
+        <div id="avatar" style="font-size: 64px; text-align:center; margin:20px;">😴</div>
+        <span id="avatar-status" style="margin-left:16px;font-size:1.1em;color:#4f8cff;opacity:0.7;">Sleeping</span>
+      </div>
+      <div id="skills-container">
+        <div class="skill-bar" id="skill-financial">
+          <div class="skill-label">Financial</div>
+          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+          <div class="skill-value"></div>
+        </div>
+        <div class="skill-bar" id="skill-health">
+          <div class="skill-label">Health</div>
+          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+          <div class="skill-value"></div>
+        </div>
+        <div class="skill-bar" id="skill-focus">
+          <div class="skill-label">Focus</div>
+          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+          <div class="skill-value"></div>
+        </div>
+        <div class="skill-bar" id="skill-relationships">
+          <div class="skill-label">Relationships</div>
+          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+          <div class="skill-value"></div>
+        </div>
+      </div>
+      <div id="questions"></div>
+      <div id="response"></div>
+      <div id="presence"></div>
+      <div id="closing"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

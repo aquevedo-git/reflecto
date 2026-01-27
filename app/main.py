@@ -1,7 +1,8 @@
 # Entry point for Reflecto app with LLM Bridge integration
 from extensions.llm_bridge.base import LLMBridge
 from extensions.llm_bridge.openai_adapter import OpenAIAdapter
-from extensions.llm_bridge.mock_adapter import MockAdapter
+from extensions.llm_bridge.mock_adapter import MockLLMAdapter as MockAdapter
+
 
 # Example usage (choose adapter as needed)
 # import openai

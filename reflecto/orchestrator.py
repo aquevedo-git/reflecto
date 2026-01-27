@@ -25,7 +25,11 @@ def run_reflecto(
     Returns a single structured result dict.
     """
     # Phase 1: Avatar prompt
-    prompt = load_avatar_prompt(user_state["avatar"])
+    # Robust: if 'avatar' key missing, use user_state itself
+    avatar_state = user_state.get("avatar")
+    if avatar_state is None:
+        avatar_state = user_state
+    prompt = load_avatar_prompt(avatar_state)
 
     # Phase 2: Flow (questions & decisions)
     flow_output = run_reflecto_flow(user_state, lambda q: "<stub>")

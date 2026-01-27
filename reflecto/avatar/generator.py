@@ -72,49 +72,56 @@ def load_avatar_prompt(user_state: dict) -> str:
 
 
 def generate_avatar_image(user_state: dict) -> str:
-	"""
-	Generate a deterministic avatar image for a user for today.
-	- user_state: dict, must include 'user_id' (str)
-	- Returns the file path to the generated image.
-	- Does not regenerate if file exists.
-	"""
-	user_id = user_state.get('user_id')
-	if not user_id:
-		raise ValueError("user_state must include 'user_id'")
+	try:
+		from app.client import get_openai_client
+		import requests
+		import os
 
-	today = user_state.get('date') or dt_date.today().isoformat()
-	avatar_dir = Path(__file__).resolve().parent.parent / 'data' / 'users' / str(user_id) / 'avatars'
-	avatar_dir.mkdir(parents=True, exist_ok=True)
-	avatar_path = avatar_dir / f"{today}.png"
+		user_id = user_state.get('user_id')
+		if not user_id:
+			return None
 
-	if avatar_path.exists():
-		return str(avatar_path)
+		skills = user_state.get('skills', {})
+		presence = user_state.get('presence', {})
+		time_of_day = user_state.get('time_of_day', 'day')
 
-	prompt = load_avatar_prompt(user_state)
+		client = get_openai_client()
+		if client is None:
+			return None
 
-	# Deterministic seed: hash of user_id + date
-	import hashlib
-	seed_str = f"{user_id}-{today}"
-	seed = int(hashlib.sha256(seed_str.encode()).hexdigest(), 16) % (10**8)
+		top_skill = max(skills, key=skills.get) if skills else "personal"
 
-	if openai_client is None:
-		raise RuntimeError("OpenAI client is not available.")
+		energy_level = presence.get('energy_level', 'medium') if isinstance(presence, dict) else getattr(presence, 'energy_level', 'medium')
 
-	# Call OpenAI image generation API (assume DALL-E 3 or similar)
-	response = openai_client.images.generate(
-		prompt=prompt,
-		n=1,
-		size="512x512",
-		response_format="url",
-		seed=seed  # Assume API supports deterministic seed
-	)
-	image_url = response.data[0].url
+		prompt = (
+			f"A calm symbolic avatar representing a {time_of_day} mood, "
+			f"{energy_level} energy, "
+			f"focused on {top_skill} growth, minimalist, soft lighting, "
+			"no face, abstract, reflective, life OS assistant"
+		)
 
-	# Download and save image
-	import requests
-	img_data = requests.get(image_url).content
-	with open(avatar_path, 'wb') as f:
-		f.write(img_data)
+		avatar_dir = os.path.join("static", "avatars")
+		os.makedirs(avatar_dir, exist_ok=True)
+		image_path = os.path.join(avatar_dir, f"{user_id}.png")
 
-	return str(avatar_path)
+		result = client.images.generate(
+			model="gpt-image-1",
+			prompt=prompt,
+			size="512x512"
+		)
+
+		image_url = result.data[0].url if result.data else None
+		if not image_url:
+			return None
+
+		img_data = requests.get(image_url, timeout=10).content
+		with open(image_path, "wb") as f:
+			f.write(img_data)
+
+		return image_path
+
+	except Exception as e:
+		import logging
+		logging.error(f"Avatar generation failed: {e}")
+		return None
 

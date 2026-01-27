@@ -11,6 +11,16 @@ def build_presence(today_state: DailyState, memory_patterns, flow_context: dict)
         - expression: 'subtle' | 'neutral' | 'alert'
         - notes: short human-readable summary
     """
+    if today_state is None:
+        # Return a default presence descriptor
+        return {
+            "energy_level": "medium",
+            "emotional_tone": "neutral",
+            "presence_style": "holding",
+            "pacing": "normal",
+            "expression": "neutral",
+            "notes": "No daily state provided."
+        }
     # Energy level
     if today_state.energy <= 4:
         energy_level = 'low'
