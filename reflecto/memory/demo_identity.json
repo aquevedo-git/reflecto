@@ -1,0 +1,21 @@
+{
+  "recurring_moods": [
+    "dormant"
+  ],
+  "recurring_stressors": [
+    "low_activity_cycles"
+  ],
+  "recurring_focus_patterns": [
+    "high_focus_baseline"
+  ],
+  "recurring_themes": [],
+  "signals": {
+    "financial": 1.1495,
+    "health": 1.1495,
+    "focus": 1.1495,
+    "relationships": 1.1495
+  },
+  "confidence": {},
+  "evidence": {},
+  "last_updated": "2026-01-21"
+}

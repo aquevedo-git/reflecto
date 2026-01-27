@@ -10,10 +10,34 @@ import time
 import json
 import datetime
 
+from api.services.action_store import get_actions
+from api.services.presence_engine import derive_presence
+from api.contracts import validate_event
+
+from persistence.session_repository import SessionRepository
+from uuid import uuid4
+
+repo = SessionRepository()
+
 router = APIRouter()
 
+def journal_event(session_id: str, event_type: str, payload: dict, source: str = "system"):
+    event = {
+        "id": str(uuid4()),
+        "session_id": session_id,
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "type": event_type,
+        "payload": payload,
+        "source": source
+    }
+    repo.append_event(event)
 
-async def stream_generator(session_id: str, request: Request, shutdown_event: asyncio.Event):
+
+async def stream_generator(
+    session_id: str,
+    request: Request,
+    shutdown_event: asyncio.Event
+):
     presence_interval = 3
     skills_interval = 5
     time_of_day_interval = 10
@@ -34,58 +58,84 @@ async def stream_generator(session_id: str, request: Request, shutdown_event: as
                 return
 
             now = datetime.datetime.now()
-            hour = now.hour
-
-            if 5 <= hour < 12:
-                time_of_day = "morning"
-                state = "AWAKE"
-            elif 12 <= hour < 17:
-                time_of_day = "afternoon"
-                state = "AWAKE"
-            elif 17 <= hour < 22:
-                time_of_day = "evening"
-                state = "CALM"
-            else:
-                time_of_day = "night"
-                state = "SLEEPING"
-
             now_ts = time.time() - start
             emitted = False
 
-            # Heartbeat
+            # =========================
+            # HEARTBEAT
+            # =========================
             if now_ts - last_heartbeat >= heartbeat_interval:
+                data = {"ts": int(time.time())}
+                validate_event("heartbeat", data)
+
                 print("[SSE] heartbeat")
-                yield f"event: heartbeat\ndata: {json.dumps({'ts': int(time.time())})}\n\n"
+                journal_event(session_id, "heartbeat", data)
+                yield f"event: heartbeat\ndata: {json.dumps(data)}\n\n"
+
+
                 last_heartbeat = now_ts
                 emitted = True
 
-            # Presence
+            # =========================
+            # PRESENCE (DERIVED FROM ACTIONS)
+            # =========================
             if now_ts - last_presence >= presence_interval:
-                print(f"[SSE] presence={state}")
-                yield f"event: presence\ndata: {json.dumps({'state': state, 'time_of_day': time_of_day})}\n\n"
+                actions = get_actions(session_id)
+                presence = derive_presence(actions, now)
+                data = presence.model_dump(mode="json")
+
+                validate_event("presence", data)
+
+                print(f"[SSE] presence={presence.state}")
+                journal_event(session_id, "presence", data)
+                yield f"event: presence\ndata: {json.dumps(data)}\n\n"
+
+
                 last_presence = now_ts
                 emitted = True
 
-            # Skills
+            # =========================
+            # SKILLS (TEMP STATIC)
+            # =========================
             if now_ts - last_skills >= skills_interval:
+                data = {
+                    "financial": 80,
+                    "health": 70,
+                    "focus": 90,
+                    "relationships": 60
+                }
+                validate_event("skills", data)
+
                 print("[SSE] skills update")
-                yield f"event: skills\ndata: {json.dumps({'financial':80,'health':70,'focus':90,'relationships':60})}\n\n"
+                journal_event(session_id, "skills", data)
+                yield f"event: skills\ndata: {json.dumps(data)}\n\n"
+
+
                 last_skills = now_ts
                 emitted = True
 
-            # Time of day
+            # =========================
+            # TIME OF DAY (FROM PRESENCE)
+            # =========================
             if now_ts - last_time_of_day >= time_of_day_interval:
-                print(f"[SSE] time_of_day={time_of_day}")
-                yield f"event: time_of_day\ndata: {json.dumps({'time_of_day': time_of_day})}\n\n"
+                # presence is always available because presence interval < time_of_day interval
+                data = {"time_of_day": presence.time_of_day}
+                validate_event("time_of_day", data)
+
+                print(f"[SSE] time_of_day={presence.time_of_day}")
+                journal_event(session_id, "time_of_day", data)
+                yield f"event: time_of_day\ndata: {json.dumps(data)}\n\n"
+
+
                 last_time_of_day = now_ts
                 emitted = True
 
             if not emitted:
-                await asyncio.sleep(0.1)  # cancellable
+                await asyncio.sleep(0.1)
 
     except asyncio.CancelledError:
         print("[SSE] cancelled by server")
-        raise  # IMPORTANT: allow uvicorn to stop immediately
+        raise
 
     finally:
         print("[SSE] cleanup complete")

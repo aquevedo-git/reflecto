@@ -6,12 +6,17 @@ from api.session_service import create_session, get_session, list_sessions_for_u
 from api.streaming import router as streaming_router
 from fastapi.middleware.cors import CORSMiddleware
 
-
+from api.routes.write import router as write_router
+from api.routes import daily
 
 
 # Global shutdown event for SSE cancellation
 shutdown_event = asyncio.Event()
 app = FastAPI(title="Reflecto API", version="1.0")
+
+
+app.include_router(daily.router)
+
 
 
 # --- In-memory event queue for demo ---
