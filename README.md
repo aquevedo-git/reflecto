@@ -165,7 +165,7 @@ modeling ⬜ AI-assisted behavioral forecasting
 ## Author
 
 Arturo Quevedo\
-Data Engineer / AI Systems Developer
+TS/SCI Cleared Data Engineer / AI Systems Developer
 
 LinkedIn: https://linkedin.com/in/art-quevedo
 
