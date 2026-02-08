@@ -28,8 +28,8 @@ def update_memory(old_memory: Dict[str, Any], daily_state: Dict[str, Any]) -> Di
 	Do not draw conclusions from single days.
 	Reflect slowly and be conservative.
 	"""
-	# Append today's state to history
-	history = old_memory.get("history", [])
+	# Append today's state to history (do not mutate input)
+	history = list(old_memory.get("history", []))
 	history.append(daily_state)
 	# Only keep last 30 days for memory
 	history = history[-30:]

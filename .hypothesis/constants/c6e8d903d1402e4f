@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/domain/phases/voice_engine.py
+# hypothesis_version: 6.151.5
+
+[' Take care.', ',', ', ', '.', '. ', '. Take care.', '..', 'emotional_tone', 'energy_level', 'grounded', 'low', 'minimal', 'notes', 'should_close', 'soft', 'steady', 'text', 'voice', 'warm']

@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/infrastructure/persistence/session_repository.py
+# hypothesis_version: 6.151.5
+
+[',', '?', 'created_at', 'data', 'day', 'event_hash', 'event_index', 'id', 'payload', 'prev_hash', 'session_id', 'sessions.db', 'snapshot', 'source', 'state', 'timestamp', 'type', 'updated_at', 'user_id', 'v1', 'version']

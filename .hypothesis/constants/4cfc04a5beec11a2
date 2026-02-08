@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/domain/core/snapshot_builder.py
+# hypothesis_version: 6.151.5
+
+['counts', 'financial', 'focus', 'health', 'last_presence', 'last_time_of_day', 'meaningful_events', 'payload', 'presence', 'relationships', 'skills', 'time_of_day', 'type']

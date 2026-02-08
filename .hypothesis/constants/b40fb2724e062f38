@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/application/services/session_service.py
+# hypothesis_version: 6.151.5
+
+['avatar', 'avatar_prompt', 'closing', 'closing_phrase', 'continuity_phrase', 'data', 'dict', 'done', 'flow_context', 'history', 'id', 'meta', 'mode', 'model_dump', 'payload', 'presence', 'questions', 'raw_response', 'recomputed', 'reflecto-v1.0', 'replay', 'response', 'response_chunk', 'session', 'session_id', 'session_service', 'source', 'started', 'status', 'text', 'timestamp', 'type', 'user_state']

@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/reflecto/config/env_loader.py
+# hypothesis_version: 6.151.5
+
+['.env', 'LLM_MODEL', 'LLM_PROVIDER', 'LLM_TIMEOUT', 'PYTEST_CURRENT_TEST', 'gpt-test', 'loc', 'openai', 'test-key', 'utf-8']

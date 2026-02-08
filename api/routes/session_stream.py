@@ -1,8 +1,7 @@
-
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from services.streaming_service import stream_session_events
 import logging
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from application.services.streaming_service import stream_session_events
 
 router = APIRouter()
 

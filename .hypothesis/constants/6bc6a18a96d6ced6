@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/infrastructure/streaming/streaming_service.py
+# hypothesis_version: 6.151.5
+
+['STREAM EVENT:', 'STREAM EXITED', 'STREAM START', 'STREAM TERMINATED', 'done', 'payload', 'session_id', 'type']

@@ -18,8 +18,8 @@ def make_fake_session():
         "meta": {"foo": "bar"}
     }
     user_id = f"user-{uuid.uuid4()}"
-    from persistence.models import SessionRecord
-    from persistence.session_repository import SessionRepository
+    from infrastructure.persistence.models import SessionRecord
+    from infrastructure.persistence.session_repository import SessionRepository
     repo = SessionRepository()
     record = SessionRecord(user_id=user_id, data=session_data, version="reflecto-v1.0")
     session_id = repo.save(record)

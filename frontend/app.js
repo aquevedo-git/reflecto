@@ -1,4 +1,935 @@
+(() => {
+  const DEBUG = false;
 
+  const state = {
+    sessionActive: false,
+    activeSessionId: null,
+    lastSessionId: null,
+    eventSource: null
+  };
+
+  const API_BASE = detectApiBase();
+
+  function log(...args) {
+    if (DEBUG) {
+      console.log("[Reflecto]", ...args);
+    }
+  }
+
+  function detectApiBase() {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+    if (host === "reflecto-frontend" || host === "reflecto-backend") {
+      return "/api";
+    }
+    return "";
+  }
+
+  function getEl(id) {
+    return document.getElementById(id);
+  }
+
+  function updateSessionDebugFooter() {
+    const footerId = "session-debug-footer";
+    let footer = getEl(footerId);
+    if (!footer) {
+      footer = document.createElement("div");
+      footer.id = footerId;
+      footer.style.position = "fixed";
+      footer.style.bottom = "0";
+      footer.style.left = "0";
+      footer.style.width = "100%";
+      footer.style.background = "#222";
+      footer.style.color = "#43e97b";
+      footer.style.fontSize = "14px";
+      footer.style.padding = "4px 12px";
+      footer.style.zIndex = "9999";
+      document.body.appendChild(footer);
+    }
+    footer.textContent = state.sessionActive && state.activeSessionId
+      ? `Session Active: ${state.activeSessionId}`
+      : "No active session.";
+  }
+
+  function setLoading(isLoading) {
+    const startBtn = getEl("start-session");
+    const replayBtn = getEl("replay-session");
+    if (startBtn) startBtn.disabled = isLoading;
+    if (replayBtn) replayBtn.disabled = isLoading;
+    const loading = getEl("session-loading");
+    if (loading) loading.style.display = isLoading ? "block" : "none";
+  }
+
+  function setLifecycle(text) {
+    const el = getEl("session-lifecycle");
+    if (el) el.textContent = text;
+  }
+
+  function setError(message) {
+    const el = getEl("session-error");
+    if (!el) return;
+    if (message) {
+      el.textContent = message;
+      el.style.display = "block";
+    } else {
+      el.textContent = "";
+      el.style.display = "none";
+    }
+  }
+
+  function setHeartbeatVisible(isVisible) {
+    const dot = getEl("heartbeat-dot");
+    if (!dot) return;
+    dot.style.display = isVisible ? "inline-block" : "none";
+    if (!isVisible) {
+      dot.classList.remove("active");
+    }
+  }
+
+  function pulseHeartbeat() {
+    const dot = getEl("heartbeat-dot");
+    if (!dot) return;
+    dot.classList.add("active");
+    window.setTimeout(() => dot.classList.remove("active"), 400);
+  }
+
+  function resetOutput() {
+    ["questions", "response", "presence", "closing"].forEach((id) => {
+      const el = getEl(id);
+      if (el) el.textContent = "";
+    });
+    setTimelinePhase(null);
+  }
+
+  function stringifyForDisplay(value) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch (err) {
+      return String(value);
+    }
+  }
+
+  function parseEventData(raw) {
+    if (raw === null || raw === undefined || raw === "") return null;
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      return raw;
+    }
+  }
+
+  function computeAvatarState(presence) {
+    let emoji = "🙂";
+    let label = "Neutral";
+    let cssClass = "avatar-neutral";
+    if (presence && presence.state) {
+      if (presence.state === "AWAKE") {
+        emoji = "🙂";
+        label = "Awake";
+        cssClass = "avatar-neutral";
+      } else if (presence.state === "CALM") {
+        emoji = "😌";
+        label = "Calm";
+        cssClass = "avatar-calm";
+      } else if (presence.state === "SLEEPING") {
+        emoji = "😴";
+        label = "Sleeping";
+        cssClass = "avatar-sleeping";
+      }
+    }
+    return { emoji, label, cssClass };
+  }
+
+  function updateAvatar(presence, avatarPrompt) {
+    const avatar = getEl("avatar");
+    const avatarStatus = getEl("avatar-status");
+    if (presence) {
+      const avatarState = computeAvatarState(presence);
+      if (avatar) {
+        avatar.textContent = avatarState.emoji;
+        avatar.className = `avatar ${avatarState.cssClass}`;
+      }
+      if (avatarStatus) avatarStatus.textContent = avatarState.label;
+      return;
+    }
+    if (avatar) {
+      avatar.textContent = "🙂";
+      avatar.className = "avatar avatar-neutral";
+    }
+    if (avatarStatus) {
+      avatarStatus.textContent = avatarPrompt || "Reflecto";
+    }
+  }
+
+  function showAnswerInput(question) {
+    let answerInput = getEl("answer-input");
+    let submitBtn = getEl("submit-answer");
+    const questionsEl = getEl("questions");
+    if (!questionsEl) return;
+
+    if (!answerInput) {
+      answerInput = document.createElement("input");
+      answerInput.type = "text";
+      answerInput.id = "answer-input";
+      answerInput.placeholder = "Type your answer...";
+      answerInput.style.marginTop = "10px";
+      answerInput.style.width = "80%";
+      questionsEl.parentNode.insertBefore(answerInput, questionsEl.nextSibling);
+    }
+    if (!submitBtn) {
+      submitBtn = document.createElement("button");
+      submitBtn.textContent = "Submit Answer";
+      submitBtn.id = "submit-answer";
+      submitBtn.style.marginLeft = "10px";
+      answerInput.parentNode.insertBefore(submitBtn, answerInput.nextSibling);
+    }
+
+    answerInput.disabled = !state.sessionActive;
+    submitBtn.disabled = !state.sessionActive;
+    submitBtn.onclick = async () => {
+      const answer = answerInput.value;
+      if (!answer || !state.activeSessionId) return;
+      try {
+        submitBtn.disabled = true;
+        answerInput.disabled = true;
+        await fetch(`${API_BASE}/write/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: state.activeSessionId, answer })
+        });
+      } catch (err) {
+        log("Action error:", err);
+        const responseEl = getEl("response");
+        if (responseEl) responseEl.textContent = "Submission failed.";
+        answerInput.disabled = false;
+        submitBtn.disabled = false;
+      }
+    };
+
+    if (question) {
+      answerInput.placeholder = question;
+    }
+  }
+
+  function disableAnswerInput() {
+    const answerInput = getEl("answer-input");
+    const submitBtn = getEl("submit-answer");
+    if (answerInput) answerInput.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+  }
+
+  function updateSkillsUI(data) {
+    const skills = ["financial", "health", "focus", "relationships"];
+    skills.forEach((skill) => {
+      const val = Number(data?.[skill] ?? 0);
+      const bar = document.querySelector(`#skill-${skill} .skill-bar-inner`);
+      const label = document.querySelector(`#skill-${skill} .skill-value`);
+      if (bar) {
+        bar.style.width = `${val}%`;
+        bar.classList.add("bar-animate");
+        window.setTimeout(() => bar.classList.remove("bar-animate"), 600);
+      }
+      if (label) label.textContent = String(val);
+    });
+  }
+
+  function setTimelinePhase(phase) {
+    const steps = document.querySelectorAll(".timeline-step[data-phase]");
+    steps.forEach((step) => {
+      if (!phase) {
+        step.classList.remove("active");
+        return;
+      }
+      if (step.dataset.phase === phase) {
+        step.classList.add("active");
+      } else {
+        step.classList.remove("active");
+      }
+    });
+  }
+
+  function renderEvent(type, payload) {
+    switch (type) {
+      case "avatar":
+        updateAvatar(null, payload?.avatar_prompt || payload?.avatar || payload);
+        setTimelinePhase("start");
+        break;
+      case "questions": {
+        const questions = payload?.questions || [];
+        const questionsEl = getEl("questions");
+        if (questionsEl) questionsEl.textContent = questions.join("\n");
+        showAnswerInput(questions[0]);
+        setTimelinePhase("memory");
+        break;
+      }
+      case "response_chunk": {
+        const responseEl = getEl("response");
+        const text = payload?.text ?? payload;
+        if (responseEl) responseEl.textContent += stringifyForDisplay(text);
+        setTimelinePhase("voice");
+        break;
+      }
+      case "presence": {
+        const presenceEl = getEl("presence");
+        if (presenceEl) presenceEl.textContent = stringifyForDisplay(payload);
+        updateAvatar(payload, null);
+        setTimelinePhase("presence");
+        break;
+      }
+      case "timeline_phase": {
+        if (payload?.phase) setTimelinePhase(payload.phase);
+        break;
+      }
+      case "closing": {
+        const closingEl = getEl("closing");
+        const phrase = payload?.closing_phrase ?? payload?.phrase ?? payload;
+        if (closingEl) closingEl.textContent = stringifyForDisplay(phrase);
+        setLifecycle("🛑 Closing");
+        setTimelinePhase("closing");
+        disableAnswerInput();
+        break;
+      }
+      case "done": {
+        handleDone(payload?.session_id || payload);
+        break;
+      }
+      case "skills":
+        updateSkillsUI(payload);
+        break;
+      default:
+        log("Unknown event:", type, payload);
+        break;
+    }
+  }
+
+  function showCompletionSummaryPanel(data) {
+    let summary = getEl("completion-summary");
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.id = "completion-summary";
+      summary.className = "completion-summary-panel";
+      document.body.appendChild(summary);
+    }
+    summary.innerHTML = `<h3>Session Complete</h3><pre>${stringifyForDisplay(data)}</pre>`;
+    summary.style.display = "block";
+  }
+
+  async function handleDone(sessionId) {
+    setLifecycle("⏹️ Ended");
+    disableAnswerInput();
+    finishSession();
+
+    if (!sessionId) {
+      showCompletionSummaryPanel({ session_id: null, note: "Missing session_id in done event." });
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/session/${sessionId}/replay`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      const replayData = await res.json();
+      showCompletionSummaryPanel(replayData);
+    } catch (err) {
+      log("Replay fetch error:", err);
+      showCompletionSummaryPanel({ session_id: sessionId, error: String(err) });
+    }
+  }
+
+  function closeStream() {
+    if (state.eventSource) {
+      state.eventSource.close();
+      state.eventSource = null;
+    }
+    setHeartbeatVisible(false);
+  }
+
+  function openStream(sessionId) {
+    if (!sessionId) return;
+    closeStream();
+
+    const url = `${API_BASE}/session/${sessionId}/stream`;
+    const es = new EventSource(url);
+    state.eventSource = es;
+    state.activeSessionId = sessionId;
+    state.sessionActive = true;
+    updateSessionDebugFooter();
+    setHeartbeatVisible(true);
+    setError(null);
+    setLifecycle("▶️ Live");
+
+    es.onopen = () => {
+      log("SSE open", url);
+      pulseHeartbeat();
+    };
+
+    es.onerror = () => {
+      const isClosed = es.readyState === EventSource.CLOSED;
+      log("SSE error", { isClosed });
+      pulseHeartbeat();
+      if (isClosed && state.sessionActive) {
+        setError("Streaming disconnected.");
+        closeStream();
+      } else {
+        setError("Streaming error. Attempting to reconnect...");
+      }
+    };
+
+    const handlers = ["avatar", "questions", "response_chunk", "presence", "timeline_phase", "closing", "done", "skills"];
+    handlers.forEach((type) => {
+      es.addEventListener(type, (event) => {
+        const payload = parseEventData(event.data);
+        renderEvent(type, payload);
+        pulseHeartbeat();
+      });
+    });
+  }
+
+  function finishSession() {
+    closeStream();
+    state.sessionActive = false;
+    state.activeSessionId = null;
+    updateSessionDebugFooter();
+    setHeartbeatVisible(false);
+    setLoading(false);
+  }
+
+  async function startSession() {
+    if (state.sessionActive) return;
+
+    setLoading(true);
+    setError(null);
+    resetOutput();
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const payload = {
+        user_id: "demo",
+        user_state: { avatar: "reflecto", date: today },
+        history: [
+          {
+            date: today,
+            energy: 5,
+            mood: 5,
+            stress: 5,
+            focus: 5,
+            meaning: 5
+          }
+        ],
+        flow_context: {},
+        raw_response: null
+      };
+
+      const res = await fetch(`${API_BASE}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json();
+      if (!data?.session_id) {
+        throw new Error("Missing session_id from /session/start");
+      }
+
+      state.lastSessionId = data.session_id;
+      openStream(data.session_id);
+      setLoading(false);
+    } catch (err) {
+      log("Start session error:", err);
+      setError(`Failed to start session: ${err.message || err}`);
+      setLoading(false);
+      state.sessionActive = false;
+      state.activeSessionId = null;
+      updateSessionDebugFooter();
+      closeStream();
+    }
+  }
+
+  function replaySession() {
+    if (state.sessionActive) {
+      closeStream();
+      state.sessionActive = false;
+      state.activeSessionId = null;
+    }
+
+    let sessionId = state.lastSessionId;
+    if (!sessionId) {
+      sessionId = window.prompt("Enter session ID to replay:");
+    }
+    if (!sessionId) return;
+
+    resetOutput();
+    setError(null);
+    setLoading(false);
+    openStream(sessionId);
+  }
+
+  function init() {
+    const startBtn = getEl("start-session");
+    const replayBtn = getEl("replay-session");
+    if (startBtn) startBtn.addEventListener("click", startSession);
+    if (replayBtn) replayBtn.addEventListener("click", replaySession);
+    setLoading(false);
+    setHeartbeatVisible(false);
+  }
+
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+  document.addEventListener("DOMContentLoaded", updateSessionDebugFooter, { once: true });
+})();(() => {
+  const DEBUG = false;
+
+  const state = {
+    sessionActive: false,
+    activeSessionId: null,
+    lastSessionId: null,
+    eventSource: null
+  };
+
+  const API_BASE = detectApiBase();
+
+  function log(...args) {
+    if (DEBUG) {
+      console.log("[Reflecto]", ...args);
+    }
+  }
+
+  function detectApiBase() {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+    if (host === "reflecto-frontend" || host === "reflecto-backend") {
+      return "/api";
+    }
+    return "";
+  }
+
+  function getEl(id) {
+    return document.getElementById(id);
+  }
+
+  function setLoading(isLoading) {
+    const startBtn = getEl("start-session");
+    const replayBtn = getEl("replay-session");
+    if (startBtn) startBtn.disabled = isLoading;
+    if (replayBtn) replayBtn.disabled = isLoading;
+    const loading = getEl("session-loading");
+    if (loading) loading.style.display = isLoading ? "block" : "none";
+  }
+
+  function setLifecycle(text) {
+    const el = getEl("session-lifecycle");
+    if (el) el.textContent = text;
+  }
+
+  function setError(message) {
+    const el = getEl("session-error");
+    if (!el) return;
+    if (message) {
+      el.textContent = message;
+      el.style.display = "block";
+    } else {
+      el.textContent = "";
+      el.style.display = "none";
+    }
+  }
+
+  function setHeartbeatVisible(isVisible) {
+    const dot = getEl("heartbeat-dot");
+    if (!dot) return;
+    dot.style.display = isVisible ? "inline-block" : "none";
+    if (!isVisible) {
+      dot.classList.remove("active");
+    }
+  }
+
+  function pulseHeartbeat() {
+    const dot = getEl("heartbeat-dot");
+    if (!dot) return;
+    dot.classList.add("active");
+    window.setTimeout(() => dot.classList.remove("active"), 400);
+  }
+
+  function resetOutput() {
+    ["questions", "response", "presence", "closing"].forEach((id) => {
+      const el = getEl(id);
+      if (el) el.textContent = "";
+    });
+    setTimelinePhase(null);
+  }
+
+  function stringifyForDisplay(value) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") return value;
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch (err) {
+      return String(value);
+    }
+  }
+
+  function parseEventData(raw) {
+    if (raw === null || raw === undefined || raw === "") return null;
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      return raw;
+    }
+  }
+
+  function computeAvatarState(presence) {
+    let emoji = "🙂";
+    let label = "Neutral";
+    let cssClass = "avatar-neutral";
+    if (presence && presence.state) {
+      if (presence.state === "AWAKE") {
+        emoji = "🙂";
+        label = "Awake";
+        cssClass = "avatar-neutral";
+      } else if (presence.state === "CALM") {
+        emoji = "😌";
+        label = "Calm";
+        cssClass = "avatar-calm";
+      } else if (presence.state === "SLEEPING") {
+        emoji = "😴";
+        label = "Sleeping";
+        cssClass = "avatar-sleeping";
+      }
+    }
+    return { emoji, label, cssClass };
+  }
+
+  function updateAvatar(presence, avatarPrompt) {
+    const avatar = getEl("avatar");
+    const avatarStatus = getEl("avatar-status");
+    if (presence) {
+      const avatarState = computeAvatarState(presence);
+      if (avatar) {
+        avatar.textContent = avatarState.emoji;
+        avatar.className = `avatar ${avatarState.cssClass}`;
+      }
+      if (avatarStatus) avatarStatus.textContent = avatarState.label;
+      return;
+    }
+    if (avatar) {
+      avatar.textContent = "🙂";
+      avatar.className = "avatar avatar-neutral";
+    }
+    if (avatarStatus) {
+      avatarStatus.textContent = avatarPrompt || "Reflecto";
+    }
+  }
+
+  function showAnswerInput(question) {
+    let answerInput = getEl("answer-input");
+    let submitBtn = getEl("submit-answer");
+    const questionsEl = getEl("questions");
+    if (!questionsEl) return;
+
+    if (!answerInput) {
+      answerInput = document.createElement("input");
+      answerInput.type = "text";
+      answerInput.id = "answer-input";
+      answerInput.placeholder = "Type your answer...";
+      answerInput.style.marginTop = "10px";
+      answerInput.style.width = "80%";
+      questionsEl.parentNode.insertBefore(answerInput, questionsEl.nextSibling);
+    }
+    if (!submitBtn) {
+      submitBtn = document.createElement("button");
+      submitBtn.textContent = "Submit Answer";
+      submitBtn.id = "submit-answer";
+      submitBtn.style.marginLeft = "10px";
+      answerInput.parentNode.insertBefore(submitBtn, answerInput.nextSibling);
+    }
+
+    answerInput.disabled = !state.sessionActive;
+    submitBtn.disabled = !state.sessionActive;
+    submitBtn.onclick = async () => {
+      const answer = answerInput.value;
+      if (!answer || !state.activeSessionId) return;
+      try {
+        submitBtn.disabled = true;
+        answerInput.disabled = true;
+        await fetch(`${API_BASE}/write/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: state.activeSessionId, answer })
+        });
+      } catch (err) {
+        log("Action error:", err);
+        const responseEl = getEl("response");
+        if (responseEl) responseEl.textContent = "Submission failed.";
+        answerInput.disabled = false;
+        submitBtn.disabled = false;
+      }
+    };
+
+    if (question) {
+      answerInput.placeholder = question;
+    }
+  }
+
+  function disableAnswerInput() {
+    const answerInput = getEl("answer-input");
+    const submitBtn = getEl("submit-answer");
+    if (answerInput) answerInput.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
+  }
+
+  function updateSkillsUI(data) {
+    const skills = ["financial", "health", "focus", "relationships"];
+    skills.forEach((skill) => {
+      const val = Number(data?.[skill] ?? 0);
+      const bar = document.querySelector(`#skill-${skill} .skill-bar-inner`);
+      const label = document.querySelector(`#skill-${skill} .skill-value`);
+      if (bar) {
+        bar.style.width = `${val}%`;
+        bar.classList.add("bar-animate");
+        window.setTimeout(() => bar.classList.remove("bar-animate"), 600);
+      }
+      if (label) label.textContent = String(val);
+    });
+  }
+
+  function setTimelinePhase(phase) {
+    const steps = document.querySelectorAll(".timeline-step[data-phase]");
+    steps.forEach((step) => {
+      if (!phase) {
+        step.classList.remove("active");
+        return;
+      }
+      if (step.dataset.phase === phase) {
+        step.classList.add("active");
+      } else {
+        step.classList.remove("active");
+      }
+    });
+  }
+
+  function renderEvent(type, payload) {
+    switch (type) {
+      case "avatar":
+        updateAvatar(null, payload?.avatar_prompt || payload?.avatar || payload);
+        setTimelinePhase("start");
+        break;
+      case "questions": {
+        const questions = payload?.questions || [];
+        const questionsEl = getEl("questions");
+        if (questionsEl) questionsEl.textContent = questions.join("\n");
+        showAnswerInput(questions[0]);
+        setTimelinePhase("memory");
+        break;
+      }
+      case "response_chunk": {
+        const responseEl = getEl("response");
+        const text = payload?.text ?? payload;
+        if (responseEl) responseEl.textContent += stringifyForDisplay(text);
+        setTimelinePhase("voice");
+        break;
+      }
+      case "presence": {
+        const presenceEl = getEl("presence");
+        if (presenceEl) presenceEl.textContent = stringifyForDisplay(payload);
+        updateAvatar(payload, null);
+        setTimelinePhase("presence");
+        break;
+      }
+      case "timeline_phase": {
+        if (payload?.phase) setTimelinePhase(payload.phase);
+        break;
+      }
+      case "closing": {
+        const closingEl = getEl("closing");
+        const phrase = payload?.closing_phrase ?? payload?.phrase ?? payload;
+        if (closingEl) closingEl.textContent = stringifyForDisplay(phrase);
+        setLifecycle("🛑 Closing");
+        setTimelinePhase("closing");
+        disableAnswerInput();
+        break;
+      }
+      case "done": {
+        setLifecycle("⏹️ Ended");
+        disableAnswerInput();
+        showCompletionSummaryPanel(payload);
+        break;
+      }
+      case "skills":
+        updateSkillsUI(payload);
+        break;
+      default:
+        log("Unknown event:", type, payload);
+        break;
+    }
+  }
+
+  function showCompletionSummaryPanel(data) {
+    let summary = getEl("completion-summary");
+    if (!summary) {
+      summary = document.createElement("div");
+      summary.id = "completion-summary";
+      summary.className = "completion-summary-panel";
+      document.body.appendChild(summary);
+    }
+    summary.innerHTML = `<h3>Session Complete</h3><pre>${stringifyForDisplay(data)}</pre>`;
+    summary.style.display = "block";
+  }
+
+  function closeStream() {
+    if (state.eventSource) {
+      state.eventSource.close();
+      state.eventSource = null;
+    }
+    setHeartbeatVisible(false);
+  }
+
+  function openStream(sessionId) {
+    if (!sessionId) return;
+    closeStream();
+
+    const url = `${API_BASE}/session/${sessionId}/stream`;
+    const es = new EventSource(url);
+    state.eventSource = es;
+    state.activeSessionId = sessionId;
+    state.sessionActive = true;
+    setHeartbeatVisible(true);
+    setError(null);
+    setLifecycle("▶️ Live");
+
+    es.onopen = () => {
+      log("SSE open", url);
+      pulseHeartbeat();
+    };
+
+    es.onerror = () => {
+      const isClosed = es.readyState === EventSource.CLOSED;
+      log("SSE error", { isClosed });
+      pulseHeartbeat();
+      if (isClosed && state.sessionActive) {
+        setError("Streaming disconnected.");
+        closeStream();
+      } else {
+        setError("Streaming error. Attempting to reconnect...");
+      }
+    };
+
+    const handlers = ["avatar", "questions", "response_chunk", "presence", "timeline_phase", "closing", "done", "skills"];
+    handlers.forEach((type) => {
+      es.addEventListener(type, (event) => {
+        const payload = parseEventData(event.data);
+        renderEvent(type, payload);
+        pulseHeartbeat();
+        if (type === "done") {
+          finishSession();
+        }
+      });
+    });
+  }
+
+  function finishSession() {
+    closeStream();
+    state.sessionActive = false;
+    state.activeSessionId = null;
+    setHeartbeatVisible(false);
+    setLoading(false);
+  }
+
+  async function startSession() {
+    if (state.sessionActive) return;
+
+    setLoading(true);
+    setError(null);
+    resetOutput();
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const payload = {
+        user_id: "demo",
+        user_state: { avatar: "reflecto", date: today },
+        history: [
+          {
+            date: today,
+            energy: 5,
+            mood: 5,
+            stress: 5,
+            focus: 5,
+            meaning: 5
+          }
+        ],
+        flow_context: {},
+        raw_response: null
+      };
+
+      const res = await fetch(`${API_BASE}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json();
+      if (!data?.session_id) {
+        throw new Error("Missing session_id from /session/start");
+      }
+
+      state.lastSessionId = data.session_id;
+      openStream(data.session_id);
+      setLoading(false);
+    } catch (err) {
+      log("Start session error:", err);
+      setError(`Failed to start session: ${err.message || err}`);
+      setLoading(false);
+      state.sessionActive = false;
+      state.activeSessionId = null;
+      closeStream();
+    }
+  }
+
+  function replaySession() {
+    if (state.sessionActive) {
+      closeStream();
+      state.sessionActive = false;
+      state.activeSessionId = null;
+    }
+
+    let sessionId = state.lastSessionId;
+    if (!sessionId) {
+      sessionId = window.prompt("Enter session ID to replay:");
+    }
+    if (!sessionId) return;
+
+    resetOutput();
+    setError(null);
+    setLoading(false);
+    openStream(sessionId);
+  }
+
+  function init() {
+    const startBtn = getEl("start-session");
+    const replayBtn = getEl("replay-session");
+    if (startBtn) startBtn.addEventListener("click", startSession);
+    if (replayBtn) replayBtn.addEventListener("click", replaySession);
+    setLoading(false);
+    setHeartbeatVisible(false);
+  }
+
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+})();
 
 
 // --- Debug UI Footer ---
@@ -27,6 +958,63 @@ function updateSessionDebugFooter() {
 let activeSessionId = null;
 let sseSource = null;
 let sessionActive = false;
+
+// --- SSE UI Handlers (global, safe defaults) ---
+window.updateAvatarUI = function updateAvatarUI(presence) {
+  try {
+    if (typeof computeAvatarState === 'function') {
+      const avatarState = computeAvatarState(presence);
+      const avatar = document.getElementById('avatar');
+      if (avatar) {
+        avatar.textContent = avatarState.emoji;
+        avatar.className = 'avatar ' + avatarState.cssClass;
+      }
+      const avatarStatus = document.getElementById('avatar-status');
+      if (avatarStatus) avatarStatus.textContent = avatarState.label;
+      return;
+    }
+  } catch (e) {
+    // fall through to basic render
+  }
+  const avatar = document.getElementById('avatar');
+  if (avatar) avatar.textContent = '🙂';
+};
+
+window.updateQuestionsUI = function updateQuestionsUI(data) {
+  const qEl = document.getElementById('questions');
+  if (qEl) qEl.textContent = (data.questions || []).join('\n');
+  if (typeof showAnswerInput === 'function') {
+    showAnswerInput(data.questions ? data.questions[0] : '');
+  }
+};
+
+window.appendResponseChunkUI = function appendResponseChunkUI(data) {
+  const rEl = document.getElementById('response');
+  if (rEl) rEl.textContent += data.text || '';
+};
+
+window.updatePresenceUI = function updatePresenceUI(data) {
+  const pEl = document.getElementById('presence');
+  if (pEl) pEl.textContent = data.state || JSON.stringify(data);
+  const badge = document.getElementById('avatar-status');
+  if (badge) badge.textContent = data.state || 'Unknown';
+};
+
+window.showClosingUI = function showClosingUI(data) {
+  const cEl = document.getElementById('closing');
+  if (cEl) cEl.textContent = data.phrase || JSON.stringify(data);
+  const lifecycle = document.getElementById('session-lifecycle');
+  if (lifecycle) lifecycle.textContent = '🛑 Closing';
+};
+
+window.showSessionDoneUI = function showSessionDoneUI(data) {
+  const lifecycle = document.getElementById('session-lifecycle');
+  if (lifecycle) lifecycle.textContent = '⏹️ Ended';
+  if (typeof disableAnswerInput === 'function') disableAnswerInput();
+  if (typeof showCompletionSummaryPanel === 'function') {
+    showCompletionSummaryPanel(data);
+  }
+};
 
 // Debug log helper (top-level)
 function debugLog(...args) {
@@ -92,12 +1080,37 @@ async function startSession() {
   let errorEl = document.getElementById('session-error');
   if (errorEl) errorEl.style.display = 'none';
   try {
+    const today = new Date().toISOString().slice(0, 10);
+    const payload = {
+      user_id: 'demo',
+      user_state: { avatar: 'reflecto', date: today },
+      history: [
+        {
+          date: today,
+          energy: 5,
+          mood: 5,
+          stress: 5,
+          focus: 5,
+          meaning: 5
+        }
+      ],
+      flow_context: {},
+      raw_response: null
+    };
     debugLog('Sending fetch to', `${API_BASE}/session/start`);
     if (domMsg) domMsg.textContent = 'Sending fetch to ' + `${API_BASE}/session/start`;
-    const res = await fetch(`${API_BASE}/session/start`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/session/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
     debugLog('Fetch response:', res);
     if (domMsg) domMsg.textContent = 'Fetch response: ' + res.status;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      debugLog('Start session error body:', errorText);
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
+    }
     const data = await res.json();
     debugLog('Session started, session_id:', data.session_id);
     if (domMsg) domMsg.textContent = 'Session started, starting SSE stream.';
@@ -151,7 +1164,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('start-session');
   debugLog('startBtn:', startBtn);
   if (startBtn) {
-    debugLog('Found start-session button, attaching event');
+    if (sessionActive) {
+      debugLog('Session already active, ignoring start.');
+      if (domMsg) domMsg.textContent = 'Session already active!';
+      return;
+    }
     domMsg.textContent = 'Start button found, event attached.';
     startBtn.addEventListener('click', startSession);
   } else {
@@ -182,42 +1199,53 @@ function startSSEStream(sessionId) {
     if (heartbeat) heartbeat.classList.add('active');
   };
   sseSource.onerror = (e) => {
+    const isClosed = sseSource && sseSource.readyState === EventSource.CLOSED;
+    if (isClosed || !sessionActive) {
+      if (heartbeat) heartbeat.classList.remove('active');
+      return;
+    }
     debugLog('SSE error:', e);
     if (heartbeat) heartbeat.classList.remove('active');
   };
   // Bind all backend events
   sseSource.addEventListener('avatar', e => {
-    updateAvatarUI(JSON.parse(e.data));
+    const handler = window.updateAvatarUI;
+    if (typeof handler === 'function') handler(JSON.parse(e.data));
   });
   sseSource.addEventListener('questions', e => {
     const data = JSON.parse(e.data);
-    updateQuestionsUI(data);
+    const handler = window.updateQuestionsUI;
+    if (typeof handler === 'function') handler(data);
   });
   sseSource.addEventListener('response_chunk', e => {
     const data = JSON.parse(e.data);
-    appendResponseChunkUI(data);
+    const handler = window.appendResponseChunkUI;
+    if (typeof handler === 'function') handler(data);
   });
   sseSource.addEventListener('presence', e => {
     const data = JSON.parse(e.data);
-    updatePresenceUI(data);
+    const handler = window.updatePresenceUI;
+    if (typeof handler === 'function') handler(data);
   });
   sseSource.addEventListener('skills', e => {
     const data = JSON.parse(e.data);
-    updateSkillsUI(data);
+    if (typeof updateSkillsUI === 'function') updateSkillsUI(data);
   });
   sseSource.addEventListener('timeline_phase', e => {
     const data = JSON.parse(e.data);
-    updateTimelinePhaseUI(data);
+    if (typeof updateTimelinePhaseUI === 'function') updateTimelinePhaseUI(data);
   });
   sseSource.addEventListener('closing', e => {
     const data = JSON.parse(e.data);
-    showClosingUI(data);
+    const handler = window.showClosingUI;
+    if (typeof handler === 'function') handler(data);
     // Disable answer input on closing
-    disableAnswerInput();
+    if (typeof disableAnswerInput === 'function') disableAnswerInput();
   });
   sseSource.addEventListener('done', e => {
     const data = JSON.parse(e.data);
-    showSessionDoneUI(data);
+    const handler = window.showSessionDoneUI;
+    if (typeof handler === 'function') handler(data);
     if (sseSource) sseSource.close();
     sseSource = null;
     sessionActive = false;
@@ -278,11 +1306,15 @@ async function fetchAndRenderStream(sessionId = null) {
     debugLog('SSE event:', eventType, eventData);
     switch (eventType) {
       case 'avatar':
-        updateAvatarUI({ state: "AWAKE" });
+        if (typeof window.updateAvatarUI === 'function') {
+          window.updateAvatarUI({ state: "AWAKE" });
+        }
         break;
       case 'questions':
         document.getElementById('questions').textContent = (eventData.questions || []).join('\n');
-        showAnswerInput(eventData.questions[0]);
+        if (typeof showAnswerInput === 'function') {
+          showAnswerInput(eventData.questions[0]);
+        }
         break;
       case 'response_chunk':
         document.getElementById('response').textContent = eventData.text || '';
@@ -398,63 +1430,6 @@ function setBackgroundByTimeOfDay(timeOfDay) {
     body.classList.add('bg-night');
   }
 }
-
-// Main session start logic
-async function startSession() {
-  debugLog('Start session button clicked');
-  let domMsg = document.getElementById('dom-debug-msg');
-  if (domMsg) domMsg.textContent = 'Start session button clicked.';
-  setLoading(true);
-  // Clear any previous error
-  let errorEl = document.getElementById('session-error');
-  if (errorEl) errorEl.style.display = 'none';
-  try {
-    debugLog('Sending fetch to', `${API_BASE}/session/start`);
-    if (domMsg) domMsg.textContent = 'Sending fetch to ' + `${API_BASE}/session/start`;
-    const res = await fetch(`${API_BASE}/session/start`, { method: 'POST' });
-    debugLog('Fetch response:', res);
-    if (domMsg) domMsg.textContent = 'Fetch response: ' + res.status;
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    await res.json();
-    debugLog('Session started, starting SSE stream');
-    if (domMsg) domMsg.textContent = 'Session started, starting SSE stream.';
-    setLoading(false);
-    startSSEStream();
-  } catch (err) {
-    debugLog('Error in startSession:', err);
-    if (domMsg) domMsg.textContent = 'Error: ' + (err.message || err);
-    setLoading(false);
-    // Show error in UI
-    if (!errorEl) {
-      errorEl = document.createElement('div');
-      errorEl.id = 'session-error';
-      errorEl.style.color = 'red';
-      errorEl.style.margin = '12px 0';
-      errorEl.style.fontWeight = 'bold';
-      const container = document.getElementById('container') || document.body;
-      container.insertBefore(errorEl, container.firstChild);
-    }
-    errorEl.textContent = 'Failed to start session: ' + (err.message || err);
-    errorEl.style.display = 'block';
-  }
-}
-
-// Attach startSession to button (after DOM loaded)
-document.addEventListener('DOMContentLoaded', () => {
-  debugLog('Looking for start-session button');
-  let domMsg = document.getElementById('dom-debug-msg');
-  const startBtn = document.getElementById('start-session');
-  debugLog('startBtn:', startBtn);
-  if (startBtn) {
-    debugLog('Found start-session button, attaching event');
-    if (domMsg) domMsg.textContent = 'Start button found, event attached.';
-    startBtn.addEventListener('click', startSession);
-  } else {
-    debugLog('Start-session button NOT found');
-    if (domMsg) domMsg.textContent = 'Start button NOT found!';
-  }
-});
-
 
 function showAnswerInput(question) {
   let answerInput = document.getElementById('answer-input');

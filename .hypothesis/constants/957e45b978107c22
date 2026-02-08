@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/domain/core/identity_schema.py
+# hypothesis_version: 6.151.5
+
+['confidence', 'evidence', 'last_updated', 'recurring_moods', 'recurring_stressors', 'recurring_themes']

@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/api/main.py
+# hypothesis_version: 6.151.5
+
+[400, 404, '*', '/avatar/render', '/session', '/sessions/{user_id}', '1.0', 'Reflecto API', 'Session not found', 'flow_context', 'history', 'image_path', 'ok', 'raw_response', 'status', 'user_id', 'user_id required', 'user_state']

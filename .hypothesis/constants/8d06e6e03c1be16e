@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/domain/core/pattern_engine.py
+# hypothesis_version: 6.151.5
+
+['avatar_state', 'consistent_progress', 'focus', 'high_focus_baseline', 'low_activity_cycles', 'low_focus_baseline', 'meaningful_events', 'mood', 'recurring_moods', 'recurring_stressors', 'recurring_themes', 'skills', 'snapshot']

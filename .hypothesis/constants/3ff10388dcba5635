@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/api/routes/session_action.py
+# hypothesis_version: 6.151.5
+
+['Session ID', 'accepted', 'assigned_value', 'count', 'session_id', 'status']

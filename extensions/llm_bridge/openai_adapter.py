@@ -1,7 +1,11 @@
+import os
+
 from .base import LLMBridge
 from reflecto.config.env_loader import load_llm_env
 
 class OpenAIAdapter(LLMBridge):
+    DETERMINISTIC_SAFE = False
+
     def __init__(self, client=None):
         self.config = load_llm_env()
         if client is not None:
@@ -15,6 +19,8 @@ class OpenAIAdapter(LLMBridge):
                 self.client = None
 
     def generate(self, prompt: str) -> str:
+        if os.getenv("REFLECTO_DETERMINISTIC") == "1":
+            return "[LLM disabled in deterministic mode]"
         if self.client is None:
             return "[OpenAIAdapter not configured]"
 

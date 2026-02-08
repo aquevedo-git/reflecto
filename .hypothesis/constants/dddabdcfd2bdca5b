@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/domain/phases/response_shaper.py
+# hypothesis_version: 6.151.5
+
+[' — ', '.', '.\n', '.\n\n', '. ', '..', 'I notice', 'It seems', 'It sounds like', 'We notice', '\\bYou\\b', 'contained', 'emotional_tone', 'energy_level', 'grounded', 'high', 'low', 'medium', 'neutral', 'normal', 'open', 'pacing', 'presence_style', 'slow', 'spacious', 'steady', 'warm']

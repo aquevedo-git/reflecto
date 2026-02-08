@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/reflecto/avatar/presence_engine.py
+# hypothesis_version: 6.151.5
+
+['alert', 'closure', 'emotional_tone', 'energy_level', 'explore', 'expression', 'grounded', 'high', 'holding', 'improving', 'low', 'main_mode', 'medium', 'neutral', 'normal', 'notes', 'open', 'pacing', 'presence_style', 'slow', 'soft', 'spacious', 'stability', 'stable', 'steady', 'subtle', 'trend']

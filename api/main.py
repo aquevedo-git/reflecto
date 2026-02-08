@@ -1,8 +1,9 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from api.schemas import SessionRequest, SessionResponse
-from api.session_service import create_session, get_session, list_sessions_for_user, replay_session
+from application.services.session_service import create_session, get_session, list_sessions_for_user, replay_session, verify_event_chain
 from api.routes.streaming import router as streaming_router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,7 +14,15 @@ from api.routes import daily
 
 # Global shutdown event for SSE cancellation
 shutdown_event = asyncio.Event()
-app = FastAPI(title="Reflecto API", version="1.0")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    shutdown_event.set()
+
+
+app = FastAPI(title="Reflecto API", version="1.0", lifespan=lifespan)
 
 
 
@@ -24,18 +33,6 @@ app.include_router(write_router)
 # Register session_action router
 from api.routes.session_action import router as session_action_router
 app.include_router(session_action_router)
-
-# Register session_stream SSE router
-from api.routes.session_stream import router as session_stream_router
-app.include_router(session_stream_router)
-
-
-
-# --- In-memory event queue for demo ---
-import threading
-import queue
-event_queues = {}
-
 
 # Import and include the new session_start router
 from api.routes.session_start import router as session_start_router
@@ -58,14 +55,8 @@ app.add_middleware(
 
 app.include_router(streaming_router)
 
-# Register FastAPI shutdown handler to set shutdown_event
-@app.on_event("shutdown")
-async def on_shutdown():
-    shutdown_event.set()
-
 # POST /avatar/render: generate avatar image for user
 from fastapi import Request
-from reflecto.avatar import generator
 from fastapi.responses import JSONResponse
 
 @app.post("/avatar/render")
@@ -114,3 +105,8 @@ def replay_session_api(session_id: str):
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
     return result
+
+# Phase 12C: Event Chain Verification (Audit Mode)
+@app.get("/session/{session_id}/verify")
+def verify_session_events(session_id: str):
+    return verify_event_chain(session_id)

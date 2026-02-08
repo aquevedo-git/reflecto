@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path
 from api.contracts.write import ActionWrite
-from api.services.action_store import add_action
+from application.services.action_service import add_action
+from interfaces.runtime.action_store_adapters import get_action_store
 
 router = APIRouter()
 
@@ -10,7 +11,7 @@ async def session_scoped_action(
     action: ActionWrite = ...
 ):
     # Pass action to domain runner (add_action)
-    count = add_action(session_id, action)
+    count = add_action(session_id, action, store=get_action_store())
     return {
         "status": "accepted",
         "count": count,

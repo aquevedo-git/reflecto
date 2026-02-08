@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/application/services/session_service.py
+# hypothesis_version: 6.151.5
+
+[',', ':', 'algorithm', 'avatar', 'avatar_prompt', 'closing', 'closing_phrase', 'computed_hash', 'continuity_phrase', 'data', 'dict', 'done', 'event_index', 'flow_context', 'history', 'id', 'input_hash', 'input_hash_algo', 'match', 'meta', 'mode', 'model_dump', 'payload', 'presence', 'questions', 'raw_response', 'recomputed', 'reflecto-v1.0', 'replay', 'response', 'response_chunk', 'session', 'session_id', 'session_service', 'sha256', 'source', 'started', 'status', 'stored_hash', 'text', 'timestamp', 'type', 'user_state', 'utf-8']

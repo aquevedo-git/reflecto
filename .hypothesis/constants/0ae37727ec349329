@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/extensions/llm_bridge/openai_adapter.py
+# hypothesis_version: 6.151.5
+
+[512, '1', 'content', 'role', 'user']

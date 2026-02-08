@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/api/routes/streaming.py
+# hypothesis_version: 6.151.5
+
+['/session/stream', '1', 'PYTEST_RUNNING', 'session_id', 'text/event-stream']

@@ -4,24 +4,15 @@ Avatar generation and prompt loading utilities.
 """
 
 from pathlib import Path
-from datetime import date as dt_date
-import os
+from typing import Optional, Dict, Any
 
+from domain.ports.avatar_image_port import AvatarImageGenerator
 
-# Lazy initialization for OpenAI client
-_openai_client = None
+# Expose OpenAI symbol for tests that monkeypatch it
 try:
 	from openai import OpenAI
 except ImportError:
 	OpenAI = None
-
-def get_openai_client():
-	global _openai_client
-	if _openai_client is None:
-		if OpenAI is None:
-			raise ImportError("openai package is not installed")
-		_openai_client = OpenAI()
-	return _openai_client
 
 def load_avatar_prompt(user_state: dict) -> str:
 	"""
@@ -71,57 +62,11 @@ def load_avatar_prompt(user_state: dict) -> str:
 		return f"[Error loading avatar prompt: {e}]"
 
 
-def generate_avatar_image(user_state: dict) -> str:
-	try:
-		from app.client import get_openai_client
-		import requests
-		import os
-
-		user_id = user_state.get('user_id')
-		if not user_id:
-			return None
-
-		skills = user_state.get('skills', {})
-		presence = user_state.get('presence', {})
-		time_of_day = user_state.get('time_of_day', 'day')
-
-		client = get_openai_client()
-		if client is None:
-			return None
-
-		top_skill = max(skills, key=skills.get) if skills else "personal"
-
-		energy_level = presence.get('energy_level', 'medium') if isinstance(presence, dict) else getattr(presence, 'energy_level', 'medium')
-
-		prompt = (
-			f"A calm symbolic avatar representing a {time_of_day} mood, "
-			f"{energy_level} energy, "
-			f"focused on {top_skill} growth, minimalist, soft lighting, "
-			"no face, abstract, reflective, life OS assistant"
-		)
-
-		avatar_dir = os.path.join("static", "avatars")
-		os.makedirs(avatar_dir, exist_ok=True)
-		image_path = os.path.join(avatar_dir, f"{user_id}.png")
-
-		result = client.images.generate(
-			model="gpt-image-1",
-			prompt=prompt,
-			size="512x512"
-		)
-
-		image_url = result.data[0].url if result.data else None
-		if not image_url:
-			return None
-
-		img_data = requests.get(image_url, timeout=10).content
-		with open(image_path, "wb") as f:
-			f.write(img_data)
-
-		return image_path
-
-	except Exception as e:
-		import logging
-		logging.error(f"Avatar generation failed: {e}")
+def generate_avatar_image(
+	user_state: Dict[str, Any],
+	generator: Optional[AvatarImageGenerator] = None
+) -> Optional[str]:
+	if generator is None:
 		return None
+	return generator.generate(user_state)
 

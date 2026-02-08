@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/reflecto/session_runner.py
+# hypothesis_version: 6.151.5
+
+['avatar_prompt', 'closed', 'closing', 'closing_phrase', 'continuity', 'continuity_phrase', 'meta', 'paused', 'presence', 'prompt', 'questions', 'response', 'shaped_response', 'voice']

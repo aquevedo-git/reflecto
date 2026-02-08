@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/api/routes/session_start.py
+# hypothesis_version: 6.151.5
+
+['/session/start', 'anonymous', 'user_id']

@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/reflecto/orchestrator.py
+# hypothesis_version: 6.151.5
+
+['<stub>', '__annotations__', '__dict__', 'avatar', 'avatar_prompt', 'closing', 'continuity', 'date', 'flow_decisions', 'memory_patterns', 'presence', 'prompt', 'questions', 'reflecto', 'shaped_response', 'silence', 'to_dict', 'voice']

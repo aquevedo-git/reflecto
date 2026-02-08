@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from api.session_service import repo
-from persistence.models import SessionRecord
-import uuid
+
+from api.schemas import SessionRequest
+from application.services.session_service import create_session
 
 router = APIRouter()
 
@@ -11,18 +11,43 @@ class StartSessionResponse(BaseModel):
     status: str
 
 
-from fastapi import Request
-
 @router.post("/session/start", response_model=StartSessionResponse)
 async def start_session(request: Request):
-    # Accept user_id from JSON body or default to 'anonymous'
     try:
-        data = await request.json()
-        user_id = data.get("user_id", "anonymous")
+        raw = await request.json()
     except Exception:
-        user_id = "anonymous"
-    session_id = str(uuid.uuid4())
-    record = SessionRecord(user_id=user_id, data={}, version="reflecto-v1.0")
-    record.id = session_id  # override with deterministic id
-    repo.save(record)
-    return {"session_id": session_id, "status": "started"}
+        raw = {}
+
+    if isinstance(raw, dict) and "input" in raw and isinstance(raw["input"], dict):
+        raw = raw["input"]
+
+    try:
+        payload = SessionRequest.model_validate(raw)
+    except Exception:
+        from datetime import datetime, UTC
+        today = datetime.now(UTC).date().isoformat()
+        payload = SessionRequest.model_validate({
+            "user_id": "demo",
+            "user_state": {"avatar": "reflecto", "date": today},
+            "history": [
+                {
+                    "date": today,
+                    "energy": 5,
+                    "mood": 5,
+                    "stress": 5,
+                    "focus": 5,
+                    "meaning": 5,
+                }
+            ],
+            "flow_context": {},
+            "raw_response": None,
+        })
+
+    if not payload.user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+
+    result = create_session(
+        user_id=payload.user_id,
+        input_data=payload.model_dump(),
+    )
+    return {"session_id": result["session_id"], "status": "started"}

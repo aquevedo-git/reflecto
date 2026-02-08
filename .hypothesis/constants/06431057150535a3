@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/reflecto/chatbot/memory.py
+# hypothesis_version: 6.151.5
+
+['focus', 'history', 'mood', 'optional_text', 'optional_topic', 'r', 'recurring_moods', 'recurring_stressors', 'recurring_themes', 'w']

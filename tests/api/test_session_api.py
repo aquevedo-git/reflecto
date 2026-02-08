@@ -46,3 +46,15 @@ def test_post_and_get_session(monkeypatch):
     assert list_resp.status_code == 200
     sessions = list_resp.json()
     assert any(s["id"] == session_id for s in sessions)
+
+
+def test_session_requires_deterministic_date():
+    req = {
+        "user_id": "user42",
+        "user_state": {"avatar": "test"},
+        "history": [],
+        "flow_context": {},
+        "raw_response": ""
+    }
+    post_resp = client.post("/session", json=req)
+    assert post_resp.status_code == 422

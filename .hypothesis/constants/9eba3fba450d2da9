@@ -1,0 +1,4 @@
+# file: /Users/aquevedo/Desktop/Reflecto2/api/contracts/presence.py
+# hypothesis_version: 6.151.5
+
+['AWAKE', 'CALM', 'SLEEPING', 'afternoon', 'evening', 'high', 'low', 'medium', 'morning', 'night']

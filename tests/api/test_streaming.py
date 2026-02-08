@@ -35,6 +35,7 @@ def test_streaming_event_order_and_content():
     events = [line for line in resp.iter_lines() if line.strip()]
     # Check event order and presence of required event types
     event_types = [e.split(": ")[1] for e in events if e.startswith("event:")]
+    event_types = [event for event in event_types if event != "timeline_phase"]
     required_order = ["avatar", "questions", "response_chunk", "presence", "closing", "done"]
     assert event_types[:len(required_order)] == required_order
 
@@ -65,7 +66,7 @@ def test_streaming_matches_replay():
             break
     assert session_id is not None
     # Replay (direct call)
-    from services.streaming_service import stream_session_events
+    from application.services.streaming_service import stream_session_events
     replay_concat = "".join(list(stream_session_events(session_id=session_id)))
     replay_events = [e.strip() for e in replay_concat.split("\n\n") if e.strip()]
     # Compare event-by-event
