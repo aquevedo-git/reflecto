@@ -1,26 +1,66 @@
-__pycache__/
-*.pyc
-.ipynb_checkpoints/
-.env
-.venv
+############################
+# OS Files
+############################
 .DS_Store
-# Mac OS
-.DS_Store
+Thumbs.db
 
-# Python cache
+############################
+# Python Bytecode
+############################
 __pycache__/
 *.py[cod]
+*$py.class
 
-# Database files
+############################
+# Virtual Environments
+############################
+.env
+.venv/
+venv/
+ENV/
+env/
+
+############################
+# Jupyter
+############################
+.ipynb_checkpoints/
+
+############################
+# Build / Packaging
+############################
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+############################
+# Testing / Coverage
+############################
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+############################
+# Logs
+############################
+*.log
+
+############################
+# Database / Local Storage
+############################
 *.db
 *.sqlite
 
-# Environment
-.env
-.venv/
+############################
+# IDE / Editor
+############################
+.vscode/
+.idea/
 
-# Logs
-*.log
-
-build/
-*.egg-info/
+############################
+# Environment Config
+############################
+.env.*
+!.env.example
