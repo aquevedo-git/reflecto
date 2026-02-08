@@ -1,9 +1,12 @@
-# For Pydantic v2 BaseSettings support
-pydantic-settings
+
+# Pydantic v2.x is required for compatibility with FastAPI and pydantic-settings v2.x
+# Pinning to <3 to avoid breaking changes from future major versions
+pydantic>=2.6,<3  # See https://docs.pydantic.dev/2.6/migration/
+# pydantic-settings v2.x is required for Pydantic v2.x support
+pydantic-settings>=2.2,<3  # See https://github.com/pydantic/pydantic-settings/releases
 
 fastapi
 uvicorn
-pydantic
 python-dotenv
 sqlalchemy
 pytest
