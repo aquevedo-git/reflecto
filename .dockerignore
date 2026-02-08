@@ -1,0 +1,18 @@
+# Global ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.egg-info/
+build/
+dist/
+.env
+.venv
+.vscode/
+.DS_Store
+node_modules/
+npm-debug.log
+# Ignore test output
+tests/__pycache__/

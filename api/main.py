@@ -15,7 +15,19 @@ from api.routes import daily
 shutdown_event = asyncio.Event()
 app = FastAPI(title="Reflecto API", version="1.0")
 
+
+
 app.include_router(daily.router)
+
+app.include_router(write_router)
+
+# Register session_action router
+from api.routes.session_action import router as session_action_router
+app.include_router(session_action_router)
+
+# Register session_stream SSE router
+from api.routes.session_stream import router as session_stream_router
+app.include_router(session_stream_router)
 
 
 
@@ -24,17 +36,10 @@ import threading
 import queue
 event_queues = {}
 
-# POST /session/start: minimal session start endpoint for frontend
-@app.post("/session/start")
-async def start_session():
-    # For demo, always use 'demo' as session_id
-    session_id = 'demo'
-    # Create a queue for this session if not exists
-    if session_id not in event_queues:
-        event_queues[session_id] = queue.Queue()
-    # Immediately emit presence event
-    event_queues[session_id].put({"event": "presence", "data": {"state": "AWAKE"}})
-    return {"status": "started"}
+
+# Import and include the new session_start router
+from api.routes.session_start import router as session_start_router
+app.include_router(session_start_router)
 
 app.add_middleware(
     CORSMiddleware,

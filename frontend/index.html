@@ -7,43 +7,114 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="container">
-    <div id="session-loading" style="display:none;text-align:center;margin-bottom:12px;color:#4f8cff;font-weight:500;">Starting session…</div>
-    <h1>Reflecto Session Viewer</h1>
-    <button id="start-session">Start Session</button>
-    <div id="session-content">
-      <div id="avatar-container">
-        <div id="avatar" style="font-size: 64px; text-align:center; margin:20px;">😴</div>
-        <span id="avatar-status" style="margin-left:16px;font-size:1.1em;color:#4f8cff;opacity:0.7;">Sleeping</span>
-      </div>
-      <div id="skills-container">
-        <div class="skill-bar" id="skill-financial">
-          <div class="skill-label">Financial</div>
-          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
-          <div class="skill-value"></div>
+  <main id="container" role="main" aria-label="Reflecto Architecture Dashboard">
+    <!-- Top Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <div class="branding-block">
+          <h1>Reflecto</h1>
+          <div class="system-descriptor">Deterministic Cognition System<br><span class="system-descriptor-sub">Clean Architecture & Streaming Orchestration</span></div>
         </div>
-        <div class="skill-bar" id="skill-health">
-          <div class="skill-label">Health</div>
-          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
-          <div class="skill-value"></div>
-        </div>
-        <div class="skill-bar" id="skill-focus">
-          <div class="skill-label">Focus</div>
-          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
-          <div class="skill-value"></div>
-        </div>
-        <div class="skill-bar" id="skill-relationships">
-          <div class="skill-label">Relationships</div>
-          <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
-          <div class="skill-value"></div>
+        <div class="session-status-group">
+          <span id="session-lifecycle" class="session-lifecycle-indicator" title="Session lifecycle: Not started">⏸️ Not Started</span>
+          <span id="avatar-status" class="avatar-status" aria-live="polite">Sleeping</span>
+          <span id="heartbeat-dot" class="heartbeat-dot" aria-label="Heartbeat" title="Live heartbeat" style="display:none;"></span>
         </div>
       </div>
-      <div id="questions"></div>
-      <div id="response"></div>
-      <div id="presence"></div>
-      <div id="closing"></div>
+      <div id="session-loading" class="session-loading" aria-live="polite" style="display:none;">Starting session…</div>
+    </header>
+
+    <!-- Lifecycle Timeline -->
+    <nav class="lifecycle-timeline" aria-label="Cognition Lifecycle Timeline">
+      <div class="timeline-label">Cognition Lifecycle</div>
+      <ol class="timeline-steps">
+        <li class="timeline-step" data-phase="start">Start</li>
+        <li class="timeline-step" data-phase="presence">Presence</li>
+        <li class="timeline-step" data-phase="memory">Memory</li>
+        <li class="timeline-step" data-phase="voice">Voice</li>
+        <li class="timeline-step" data-phase="continuity">Continuity</li>
+        <li class="timeline-step" data-phase="closing">Closing</li>
+      </ol>
+    </nav>
+
+    <!-- Domain & Infrastructure Layers -->
+    <div class="layered-dashboard">
+      <section class="domain-layer">
+        <div class="layer-label">Domain Cognition Layer</div>
+        <div class="domain-content">
+          <!-- Cognition Core Panel (centered) -->
+          <div class="cognition-core-panel">
+            <div class="cognition-core-label">Cognition Core</div>
+            <div class="cognition-core-desc">Deterministic Engine</div>
+            <div class="cognition-core-visual" title="Deterministic Cognition Core"></div>
+          </div>
+          <!-- Avatar & Controls (left) -->
+          <aside class="dashboard-panel left-panel">
+            <div class="section-label" title="Reflecto's current cognitive state and control">Avatar & Session Control</div>
+            <div id="avatar-container" class="avatar-container">
+              <div id="avatar-frame" class="avatar-frame" aria-hidden="true">
+                <div id="avatar" class="avatar" aria-label="Avatar" style="font-size:64px;">😴</div>
+              </div>
+            </div>
+            <button id="start-session" aria-label="Start Reflecto Session">Start Session</button>
+            <button id="replay-session" aria-label="Replay Session" style="margin-left:10px;">Replay Session</button>
+            <div class="section-desc">Reflecto's avatar visualizes the current state of the cognition pipeline. Use the button to initiate a new session.</div>
+          </aside>
+          <!-- Skills (right) -->
+          <section class="dashboard-panel right-panel">
+            <div class="section-label" title="Real-time metrics from the modular intelligence pipeline">Skill Metrics</div>
+            <div id="skills-container" class="skills-container">
+              <div class="skill-bar" id="skill-financial">
+                <div class="skill-label" title="Financial: Resource management and planning module">Financial <span class="skill-tooltip">💡</span></div>
+                <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+                <div class="skill-value" title="Current financial skill metric"></div>
+              </div>
+              <div class="skill-bar" id="skill-health">
+                <div class="skill-label" title="Health: Well-being and self-maintenance module">Health <span class="skill-tooltip">💡</span></div>
+                <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+                <div class="skill-value" title="Current health skill metric"></div>
+              </div>
+              <div class="skill-bar" id="skill-focus">
+                <div class="skill-label" title="Focus: Attention and task management module">Focus <span class="skill-tooltip">💡</span></div>
+                <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+                <div class="skill-value" title="Current focus skill metric"></div>
+              </div>
+              <div class="skill-bar" id="skill-relationships">
+                <div class="skill-label" title="Relationships: Social and collaborative intelligence module">Relationships <span class="skill-tooltip">💡</span></div>
+                <div class="skill-bar-outer"><div class="skill-bar-inner"></div></div>
+                <div class="skill-value" title="Current relationships skill metric"></div>
+              </div>
+            </div>
+            <div class="section-desc">Skill metrics reflect the real-time state of Reflecto's modular intelligence subsystems.</div>
+          </section>
+        </div>
+      </section>
+      <section class="infrastructure-layer">
+        <div class="layer-label">Infrastructure Layer</div>
+        <section class="dashboard-panel bottom-panel" aria-label="Session Output">
+          <div class="section-label" title="Streaming output from the orchestration pipeline">Session Output Log</div>
+          <div class="section-desc">Live streaming output from Reflecto's AI orchestration and reflection process.</div>
+          <div class="output-architecture-legend">
+            <span class="legend-label">Pipeline:</span>
+            <span class="legend-step">Input</span> →
+            <span class="legend-step">Cognition</span> →
+            <span class="legend-step">Reflection</span> →
+            <span class="legend-step">Orchestration</span> →
+            <span class="legend-step">Output</span>
+          </div>
+          <div id="questions" class="stream-questions" aria-live="polite"></div>
+          <div id="response" class="stream-response" aria-live="polite"></div>
+          <div id="presence" class="stream-presence" aria-live="polite"></div>
+          <div id="closing" class="stream-closing" aria-live="polite"></div>
+        </section>
+      </section>
     </div>
-  </div>
+
+    <footer class="dashboard-footer">
+      <span class="footer-text">&copy; 2026 Reflecto Intelligence &mdash; Modular, Deterministic, Streaming AI Platform</span>
+    </footer>
+  </main>
+  </main>
   <script src="app.js"></script>
 </body>
 </html>
