@@ -25,24 +25,38 @@ async def stream_session_events(session_id: str) -> AsyncGenerator[str, None]:
     Async generator for session-scoped event streaming.
     Maintains deterministic order, supports replay, and safe closing.
     """
-    # Replay alignment: load all past events
-    events = repo.get_events(session_id)
-    for event in events:
-        yield sse(event["type"], event["payload"])
-        if event["type"] == "done":
-            return
+    print("STREAM START")
+    try:
+        # Replay alignment: load all past events
+        events = repo.get_events(session_id)
+        found_done = False
+        for event in events:
+            print("STREAM EVENT:", event)
+            yield sse(event["type"], event["payload"])
+            if event["type"] == "done":
+                found_done = True
+                print("STREAM REPLAY COMPLETE")
+                print("STREAM TERMINATED")
+                return
 
-    # Subscribe to live queue for this session
-    queue = _event_queues[session_id]
-    cond = _event_conditions[session_id]
-    while True:
-        async with cond:
-            while not queue:
-                await cond.wait()
-            event = queue.popleft()
-        yield sse(event["type"], event["payload"])
-        if event["type"] == "done":
-            break
+        print("STREAM REPLAY COMPLETE")
+
+        # Only subscribe to live events if session is not done
+        print("STREAM SUBSCRIBED TO LIVE EVENTS")
+        queue = _event_queues[session_id]
+        cond = _event_conditions[session_id]
+        while True:
+            async with cond:
+                while not queue:
+                    await cond.wait()
+                event = queue.popleft()
+            print("STREAM EVENT:", event)
+            yield sse(event["type"], event["payload"])
+            if event["type"] == "done":
+                print("STREAM TERMINATED")
+                return
+    finally:
+        print("STREAM EXITED")
 
 def publish_event(session_id: str, event_type: str, payload: dict):
     """

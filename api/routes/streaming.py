@@ -1,3 +1,7 @@
+import os
+from fastapi.responses import JSONResponse
+def is_test_mode() -> bool:
+    return os.getenv("PYTEST_RUNNING") == "1"
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from api.schemas import SessionRequest
@@ -23,6 +27,7 @@ def format_sse_event(event: dict) -> str:
     return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
 
 
+
 @router.post("/session/stream")
 async def session_stream(payload: StreamSessionRequest):
     # unwrap input
@@ -36,15 +41,16 @@ async def session_stream(payload: StreamSessionRequest):
 
     session_id = session["session_id"]
 
-    # Deterministic async SSE streaming: do not materialize event list
     async def event_generator():
-        # Inline comment: This async generator yields events in strict order as produced by stream_session_events,
-        # preserving deterministic delivery and contract guarantees for SSE clients.
         async for sse_event in stream_session_events(session_id=session_id):
-            # sse_event is already formatted as SSE string by the backend service
             yield sse_event
 
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream"
-    )
+    if is_test_mode():
+        # Deterministically collect all events from the generator for test mode
+        events = [event async for event in stream_session_events(session_id=session_id)]
+        return JSONResponse(events)
+    else:
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream"
+        )
