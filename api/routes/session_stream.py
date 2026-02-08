@@ -1,9 +1,11 @@
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response
-from sse_starlette.sse import EventSourceResponse
+from fastapi.responses import StreamingResponse
 from services.streaming_service import stream_session_events
+import logging
 
 router = APIRouter()
+
 
 
 @router.get("/session/{session_id}/stream")
@@ -13,8 +15,9 @@ async def session_stream_sse(session_id: str):
     Does NOT create session or execute domain logic.
     Closes when session completes.
     """
-    from services.streaming_service import stream_session_events
-    async def event_generator():
-        async for event in stream_session_events(session_id):
-            yield event
-    return EventSourceResponse(event_generator())
+    logging.debug("STREAM ROUTE RETURNING StreamingResponse")
+    # Directly return the async generator in StreamingResponse
+    return StreamingResponse(
+        stream_session_events(session_id),
+        media_type="text/event-stream"
+    )
