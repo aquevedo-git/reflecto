@@ -1,5 +1,5 @@
-from pydantic import BaseSettings, ValidationError, SecretStr
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import BaseSettings, ValidationError, SettingsConfigDict
+from pydantic import SecretStr
 import os
 
 class LLMEnvConfig(BaseSettings):

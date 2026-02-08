@@ -1,3 +1,5 @@
+# For Pydantic v2 BaseSettings support
+pydantic-settings
 
 fastapi
 uvicorn
